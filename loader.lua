@@ -23,4 +23,5 @@ if isMm2(game.GameId) then
 else
 	print("The GameID is Invalid")
 	print(game.GameId)
+	print("Here Actual GameID")
 end

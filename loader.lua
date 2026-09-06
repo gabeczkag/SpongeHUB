@@ -1,8 +1,15 @@
-local mm2 = 142823291
+local mm2Ids = {66654135, 142823291}
 local repo = "gabeczkag/SpongeHUB"
 local path = "scripts/mm2/Script.luau"
 
-if game.GameId == mm2 then
+local function isMm2(id)
+	for _, v in ipairs(mm2Ids) do
+		if id == v then return true end
+	end
+	return false
+end
+
+if isMm2(game.GameId) then
 	local ok, script = pcall(function()
 		local commitJson = game:HttpGet("https://api.github.com/repos/" .. repo .. "/commits/main")
 		local sha = commitJson:match('"sha"%s*:%s*"([a-f0-9]+)"')

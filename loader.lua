@@ -6,4 +6,5 @@ if game.GameId == mm2 then
 	else
 	print("The GameID in Invalid")
 	print(game.GameId)
+	print("GameID ^")
 end

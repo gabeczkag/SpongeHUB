@@ -82,52 +82,96 @@ local function CreateInstance(class, props)
     return inst
 end
 
+local RoleCache = {}
+local LastRoleRefresh = 0
+
 local function GetRole(player)
-    if not player or not player.Character then return "Unknown" end
+    if not player then return "Innocent" end
+    local cached = RoleCache[player.Name]
+    if cached then return cached end
+
     local char = player.Character
-    local roleValue = player:FindFirstChild("Role")
-            or player:FindFirstChild("RoleValue")
-            or player:FindFirstChild("murderer")
-            or player:FindFirstChild("sheriff")
-    if roleValue then
-        local roleName = tostring(roleValue.Value):lower()
-        if roleName:find("murder") or roleName == "killer" then
-            return "Murderer"
-        elseif roleName:find("sheriff") or roleName:find("detective") then
-            return "Sheriff"
-        else
-            return "Innocent"
+    if not char then return "Innocent" end
+
+    --// Fallback heuristic: murderer typically holds a knife tool, sheriff a gun tool
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") then
+            local n = tostring(item.Name):lower()
+            if n:find("knife") or n:find("kni") or n:find("dagger") or n:find("blade") or n == "murderer" then
+                RoleCache[player.Name] = "Murderer"
+                return "Murderer"
+            end
+            if n:find("gun") or n:find("revolver") or n:find("pistol") or n:find("smith") then
+                RoleCache[player.Name] = "Sheriff"
+                return "Sheriff"
+            end
         end
-    end
-    local names = {"Murderer", "Killer"}
-    local sheriffNames = {"Sheriff", "Detective"}
-    for _, child in ipairs(player:GetChildren()) do
-        local name = child.Name:lower()
-        for _, murName in ipairs(names) do
-            if name == murName:lower() then return "Murderer" end
-        end
-        for _, shName in ipairs(sheriffNames) do
-            if name == shName:lower() then return "Sheriff" end
-        end
-    end
-    for _, tag in ipairs(char:GetChildren()) do
-        if tag:IsA("BillboardGui") or tag:IsA("SurfaceGui") then
-            local txt = tag:FindFirstChild("TextLabel")
-                or tag:FindFirstChild("Text")
-            if txt then
-                local text = tostring(txt.Text):lower()
-                if text:find("murder") or text:find("killer") then
-                    return "Murderer"
-                elseif text:find("sheriff") or text:find("detective") then
-                    return "Sheriff"
-                end
+        if item:IsA("BasePart") then
+            local n = tostring(item.Name):lower()
+            if n:find("knife") or n:find("dagger") then
+                RoleCache[player.Name] = "Murderer"
+                return "Murderer"
             end
         end
     end
+
     return "Innocent"
 end
 
+local PlayerDataRemote = nil
+
+local function FindPlayerDataRemote()
+    if PlayerDataRemote and PlayerDataRemote.Parent then
+        return PlayerDataRemote
+    end
+    local direct = game.ReplicatedStorage:FindFirstChild("GetPlayerData")
+    if direct and direct:IsA("RemoteFunction") then
+        PlayerDataRemote = direct
+        return PlayerDataRemote
+    end
+    for _, child in ipairs(game.ReplicatedStorage:GetDescendants()) do
+        if child.Name == "GetPlayerData" and child:IsA("RemoteFunction") then
+            PlayerDataRemote = child
+            return PlayerDataRemote
+        end
+    end
+    return nil
+end
+
+local function RefreshRolesFromRemote()
+    local remote = FindPlayerDataRemote()
+    if not remote then return false end
+    local ok, data = pcall(function()
+        return remote:InvokeServer()
+    end)
+    if not ok or type(data) ~= "table" then return false end
+    local changed = false
+    for name, info in pairs(data) do
+        if type(name) == "string" and type(info) == "table" and info.Role then
+            local roleStr = tostring(info.Role):lower()
+            local role = "Innocent"
+            if roleStr:find("murder") then
+                role = "Murderer"
+            elseif roleStr:find("sheriff") or roleStr:find("hero") then
+                role = "Sheriff"
+            end
+            if RoleCache[name] ~= role then
+                RoleCache[name] = role
+                changed = true
+            end
+        end
+    end
+    return changed
+end
+
 local function ScanRoles()
+    --// Throttle the expensive remote invoke
+    local now = os.clock()
+    if now - LastRoleRefresh > 0.75 then
+        LastRoleRefresh = now
+        RefreshRolesFromRemote()
+    end
+
     State.LocalRole = GetRole(LocalPlayer)
     State.Murderer = nil
     State.Sheriff = nil
@@ -650,22 +694,29 @@ function Aimbot:Update()
             local targetPart = parts[Config.AimbotTargetPart]
 
             if Config.SilentAimEnabled then
-                --// Silent Aim - redirect projectiles
+                --// Silent Aim - snap face toward target (helps gun/knife hit)
                 self:RedirectProjectile(target)
-            else
-                --// Regular Aimbot
-                local targetPos = targetPart.Position
-                local localChar = LocalPlayer.Character
-                if localChar then
-                    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-                    if localRoot then
-                        local direction = (targetPos - localRoot.Position).Unit
-                        local cframe = CFrame.new(localRoot.Position, localRoot.Position + direction)
+            end
 
-                        --// Smooth aim
-                        local currentCF = Camera.CFrame
-                        local smoothed = currentCF:Lerp(cframe, 1 / Config.AimbotSmoothing)
-                        Camera.CFrame = smoothed
+            --// Aim the CAMERA from its own position (fix: was using HRP as origin)
+            local aimPos = targetPart.Position
+            local camPos = Camera.CFrame.Position
+            local direction = (aimPos - camPos).Unit
+            local desired = CFrame.new(camPos, camPos + direction)
+            local smooth = math.clamp(Config.AimbotSmoothing, 0.1, 20)
+            Camera.CFrame = Camera.CFrame:Lerp(desired, 1 / (smooth * 2))
+
+            --// Also rotate the character root flat toward the target (melee/throw aim)
+            local localChar = LocalPlayer.Character
+            if localChar then
+                local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+                if localRoot then
+                    local delta = aimPos - localRoot.Position
+                    local flat = Vector3.new(delta.X, 0, delta.Z)
+                    if flat.Magnitude > 0.001 then
+                        local currentFlat = CFrame.new(localRoot.Position, localRoot.Position + Vector3.new(localRoot.CFrame.LookVector.X, 0, localRoot.CFrame.LookVector.Z))
+                        local targetFlat = CFrame.new(localRoot.Position, localRoot.Position + flat.Unit)
+                        localRoot.CFrame = currentFlat:Lerp(targetFlat, 1 / (smooth * 3))
                     end
                 end
             end
@@ -678,20 +729,17 @@ function Aimbot:RedirectProjectile(target)
         local localChar = LocalPlayer.Character
         if not localChar then return end
 
-        local tool = localChar:FindFirstChildOfClass("Tool")
-        if not tool then return end
-
-        local handle = tool:FindFirstChild("Handle")
-        if not handle then return end
-
         local targetParts = GetCharacterParts(target)
         if not targetParts or not targetParts.Head then return end
 
-        --// Set the aim towards target
+        --// Snap the character flat toward the target (no tilt, keeps movement smooth)
         local hrp = localChar:FindFirstChild("HumanoidRootPart")
         if hrp then
-            local dir = (targetParts.Head.Position - hrp.Position).Unit
-            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
+            local delta = targetParts.Head.Position - hrp.Position
+            local flat = Vector3.new(delta.X, 0, delta.Z)
+            if flat.Magnitude > 0.001 then
+                hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + flat.Unit)
+            end
         end
     end)
 end
@@ -1201,6 +1249,8 @@ local function Init()
     end)
 
     --// Main Render Loop
+    local lastFlick = 0
+
     RunService.RenderStepped:Connect(function()
         --// Update role indicator
         if State.RoleLabel then
@@ -1225,6 +1275,17 @@ local function Init()
         --// Update Aimbot
         Aimbot:Update()
         Aimbot:UpdateFOVCircle()
+
+        --// Auto Flick Knife: throw at locked target when toggled
+        if Config.FlickKnife and GetRole(LocalPlayer) == "Murderer" and State.AimbotTarget then
+            if IsAlive(State.AimbotTarget) then
+                local now = os.clock()
+                if now - lastFlick > 1.2 then
+                    lastFlick = now
+                    FlickKnife:ThrowAtTarget(State.AimbotTarget)
+                end
+            end
+        end
 
         --// NoClip
         if Config.NoClipEnabled then

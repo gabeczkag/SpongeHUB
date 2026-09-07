@@ -5,7 +5,7 @@
 
 --#include Utils.luau
 --#include UI.luau
---#include Aimbot.luau
+--#include AimBot.luau
 --#include ESP.luau
 --#include PlayerMovement.luau
 --#include AntiCheat.luau

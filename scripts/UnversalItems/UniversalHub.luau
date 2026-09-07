@@ -5,7 +5,7 @@
 
     Modules are pulled in with #include (resolved by the loader from
     scripts/UnversalItems/). You can add/remove includes freely, e.g.:
-        --#include Aimbot.luau
+--#include AimBot.luau
         --#include ESP.luau
     The loader inlines them before running, so this file is self-contained.
 

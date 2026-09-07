@@ -85,12 +85,13 @@ UN.RegisterModule("Movement", Movement)
 local UI = UN.State.Modules.UI
 if UI then
     local mod = UI:Add_Module("Movement")
+    mod:Section("Movement")
     mod:Toggle("Speed Hack", "SpeedEnabled", function() Movement:Apply() end)
     mod:Toggle("Infinite Jump", "InfiniteJump")
     mod:Toggle("NoClip", "NoClipEnabled")
     mod:Toggle("Jump Power", "JumpEnabled", function() Movement:Apply() end)
-    mod:Slider("Speed", 16, 100, "SpeedValue", function() Movement:Apply() end)
-    mod:Slider("Jump", 50, 200, "JumpValue", function() Movement:Apply() end)
+    mod:Slider("Speed", 16, 200, "SpeedValue", function() Movement:Apply() end)
+    mod:Slider("Jump", 50, 300, "JumpValue", function() Movement:Apply() end)
 else
     warn("[Movement] UI module not loaded; skipping controls.")
 end

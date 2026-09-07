@@ -19,6 +19,7 @@
 --#include PlayerMovement.luau
 --#include AntiCheat.luau
 --#include ESP.luau
+--#include RemoteSpy.luau
 
 local UN = getgenv().UN
 assert(UN, "[Hub] Utils.luau failed to load (check #include).")

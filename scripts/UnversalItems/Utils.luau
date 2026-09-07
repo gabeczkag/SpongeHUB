@@ -27,6 +27,11 @@ UN.Config = UN.Config or {
     AimbotTeamCheck = false,
     AimbotTargetTeam = "All",      -- "All" | "Murderer" | "Sheriff" | "Innocent"
     AimbotMM2Mode = false,          -- when true, uses MM2 roles (Sheriff->Murderer etc.)
+    AimbotShowFOV = true,           -- draw FOV circle
+    AimbotSilentAim = false,        -- snap character face toward target
+    AimbotTargetPart = "HumanoidRootPart",
+    AimbotFOVColor = "255, 80, 80", -- "r, g, b" string
+    AimbotKey = "None",             -- keybind to hold for aimbot (None = always on)
 
     ESPEnabled = false,
     ESPBox = true,

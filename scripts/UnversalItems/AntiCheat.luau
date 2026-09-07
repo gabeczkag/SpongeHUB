@@ -76,6 +76,7 @@ UN.RegisterModule("AntiCheat", AntiCheat)
 local UI = UN.State.Modules.UI
 if UI then
     local mod = UI:Add_Module("AntiCheat")
+    mod:Section("Anti-Cheat")
     mod:Toggle("Enable Spoof", "AntiCheatEnabled", function(v) if v then AntiCheat:Init() end end)
     mod:Toggle("Anti Kick", "AntiKick")
     mod:Toggle("Anti Screenshot", "AntiScreenshot")

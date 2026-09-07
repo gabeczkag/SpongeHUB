@@ -9,6 +9,7 @@
 --#include ESP.luau
 --#include PlayerMovement.luau
 --#include AntiCheat.luau
+--#include RemoteSpy.luau
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1234,6 +1235,12 @@ function GUI:Create()
         local mm2Mod = UN.State.Modules.UI:Add_Module("MM2")
         mm2Mod:Label("Roles update automatically.")
         mm2Mod:Button("Refresh Roles", function() ScanRoles() end)
+        --// Remote Spy lives in its own module; expose a quick-start here too
+        if UN.State.Modules.RemoteSpy then
+            mm2Mod:Button("Start Remote Spy", function()
+                UN.State.Modules.RemoteSpy:Init()
+            end)
+        end
     end
 
     State.Gui = screenGui

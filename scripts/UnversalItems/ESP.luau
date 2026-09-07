@@ -118,10 +118,11 @@ UN.RegisterModule("ESP", ESP)
 local UI = UN.State.Modules.UI
 if UI then
     local mod = UI:Add_Module("ESP")
+    mod:Section("ESP")
     mod:Toggle("Enable ESP", "ESPEnabled")
     mod:Toggle("Box", "ESPBox")
     mod:Toggle("Name", "ESPName")
-    mod:Toggle("Health", "ESPHealth")
+    mod:Toggle("Health Bar", "ESPHealth")
     mod:Toggle("Tracer", "ESPTracer")
 else
     warn("[ESP] UI module not loaded; skipping controls.")

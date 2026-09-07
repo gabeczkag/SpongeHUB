@@ -264,6 +264,93 @@ function UI:Add_Module(name)
         lbl.Text = text
     end
 
+    function handle:Section(title)
+        local sec = Instance.new("TextLabel", frame)
+        sec.Size = UDim2.new(1, -12, 0, 20)
+        sec.Position = self:_next()
+        sec.BackgroundColor3 = Color3.fromRGB(55, 45, 80)
+        sec.BorderSizePixel = 0
+        sec.Font = Enum.Font.GothamBold
+        sec.TextSize = 13
+        sec.TextColor3 = ACCENT
+        sec.TextXAlignment = Enum.TextXAlignment.Left
+        sec.Text = "  " .. title
+        state.y = state.y + 4
+    end
+
+    --// Dropdown / cycle button: cycles through `options`, stores chosen in UN.Config[configKey]
+    function handle:Dropdown(label, options, configKey)
+        local btnC = Instance.new("TextButton", frame)
+        btnC.Size = UDim2.new(1, -12, 0, 24)
+        btnC.Position = self:_next()
+        btnC.BackgroundColor3 = BTN
+        btnC.BorderSizePixel = 0
+        btnC.Font = Enum.Font.Gotham
+        btnC.TextSize = 13
+        btnC.TextXAlignment = Enum.TextXAlignment.Left
+        btnC.AutoButtonColor = false
+        local function refresh()
+            btnC.Text = label .. ": " .. tostring(UN.Config[configKey])
+        end
+        btnC.MouseButton1Click:Connect(function()
+            local cur = UN.Config[configKey]
+            local idx = 1
+            for i, o in ipairs(options) do if o == cur then idx = i end end
+            UN.Config[configKey] = options[idx % #options + 1]
+            refresh()
+        end)
+        refresh()
+        return btnC
+    end
+
+    --// Keybind recorder: click, then press a key; stores Enum.KeyCode name in UN.Config[configKey]
+    function handle:Keybind(label, configKey)
+        local btnC = Instance.new("TextButton", frame)
+        btnC.Size = UDim2.new(1, -12, 0, 24)
+        btnC.Position = self:_next()
+        btnC.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+        btnC.BorderSizePixel = 0
+        btnC.Font = Enum.Font.Gotham
+        btnC.TextSize = 13
+        btnC.TextXAlignment = Enum.TextXAlignment.Left
+        btnC.AutoButtonColor = false
+        local recording = false
+        local function refresh()
+            local v = UN.Config[configKey]
+            btnC.Text = label .. ": " .. (recording and "[press key]" or tostring(v or "None"))
+        end
+        btnC.MouseButton1Click:Connect(function()
+            recording = true
+            refresh()
+        end)
+        UN.TrackConnection(UserInputService.InputBegan:Connect(function(input, gpe)
+            if recording and not gpe then
+                UN.Config[configKey] = tostring(input.KeyCode)
+                recording = false
+                refresh()
+            end
+        end))
+        refresh()
+        return btnC
+    end
+
+    --// LogBox: a live-updating multi-line TextLabel the module can refresh itself
+    function handle:LogBox(height)
+        local box = Instance.new("TextLabel", frame)
+        box.Size = UDim2.new(1, -12, 0, height or 160)
+        box.Position = self:_next()
+        box.BackgroundColor3 = Color3.fromRGB(10, 10, 16)
+        box.BorderSizePixel = 0
+        box.Font = Enum.Font.Code
+        box.TextSize = 11
+        box.TextColor3 = Color3.fromRGB(180, 255, 180)
+        box.TextXAlignment = Enum.TextXAlignment.Left
+        box.TextYAlignment = Enum.TextYAlignment.Top
+        box.TextWrapped = true
+        box.Text = ""
+        return box
+    end
+
     state.handle = handle
     if not self.Selected then self:Select(name) end
     return handle

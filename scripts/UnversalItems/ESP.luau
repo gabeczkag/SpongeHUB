@@ -72,8 +72,12 @@ function ESP:Update()
             if root then
                 local top = UN.WorldToScreen(root.Position + Vector3.new(0, 3, 0))
                 local bottom = UN.WorldToScreen(root.Position - Vector3.new(0, 3, 0))
-                local onScreen = (root.Position - Camera.CFrame.Position).Magnitude < 2000
-                if onScreen then
+                --// top/bottom return (screenPos, isInFrontOfCamera). If either point is
+                --// behind the camera, WorldToViewportPoint gives mirrored coords on the
+                --// opposite side of the screen -> hide instead of drawing doubled ESP.
+                local inFront = top[2] and bottom[2]
+                local nearEnough = (root.Position - Camera.CFrame.Position).Magnitude < 2000
+                if inFront and nearEnough then
                     local h = (top.Y - bottom.Y)
                     local w = math.abs(h) * 0.6
                     local cx = (top.X + bottom.X) / 2

@@ -178,8 +178,15 @@ if UI then
 
     local box = mod:LogBox(260)
 
+    --// Throttle the live log refresh: rebuilding a big TextLabel every frame is
+    --// expensive, so update it at most ~4x/sec (and only while visible).
+    local lastRender = 0
     UN.TrackConnection(RunService.RenderStepped:Connect(function()
         if not box or not box.Parent then return end
+        if not box.Visible then return end
+        local now = os.clock()
+        if now - lastRender < 0.25 then return end
+        lastRender = now
         local lines = {}
         for i = 1, math.min(30, #RemoteLog) do
             local e = RemoteLog[i]

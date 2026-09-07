@@ -23,7 +23,6 @@ UN.Config = UN.Config or {
     AimbotEnabled = false,
     AimbotFOV = 150,
     AimbotSmoothing = 5,
-    AimbotTargetPart = "HumanoidRootPart",
     AimbotTeamCheck = false,
     AimbotTargetTeam = "All",      -- "All" | "Murderer" | "Sheriff" | "Innocent"
     AimbotMM2Mode = false,          -- when true, uses MM2 roles (Sheriff->Murderer etc.)

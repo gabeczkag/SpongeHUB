@@ -14,32 +14,46 @@ local LocalPlayer = UN.LocalPlayer
 
 local Movement = {}
 
+--// Cache last applied values so we don't write WalkSpeed/JumpPower every frame.
+local lastSpeed, lastJump = nil, nil
+
 function Movement:Apply()
     local char = LocalPlayer.Character
     if not char then return end
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not humanoid then return end
 
-    if UN.Config.SpeedEnabled then
-        humanoid.WalkSpeed = UN.Config.SpeedValue
-    else
-        humanoid.WalkSpeed = 16
+    local targetSpeed = UN.Config.SpeedEnabled and UN.Config.SpeedValue or 16
+    if targetSpeed ~= lastSpeed then
+        humanoid.WalkSpeed = targetSpeed
+        lastSpeed = targetSpeed
     end
 
-    if UN.Config.JumpEnabled then
-        humanoid.JumpPower = UN.Config.JumpValue
-    else
-        humanoid.JumpPower = 50
+    local targetJump = UN.Config.JumpEnabled and UN.Config.JumpValue or 50
+    if targetJump ~= lastJump then
+        humanoid.JumpPower = targetJump
+        lastJump = targetJump
     end
 end
 
-function Movement:EnableNoClip()
+--// Cache character BaseParts so NoClip doesn't scan GetDescendants() every frame.
+local NoClipParts = {}
+
+function Movement:RefreshNoClipParts()
+    for i = #NoClipParts, 1, -1 do NoClipParts[i] = nil end
     local char = LocalPlayer.Character
     if not char then return end
     for _, part in ipairs(char:GetDescendants()) do
         if part:IsA("BasePart") then
-            part.CanCollide = false
+            NoClipParts[#NoClipParts + 1] = part
         end
+    end
+end
+
+function Movement:EnableNoClip()
+    if #NoClipParts == 0 then self:RefreshNoClipParts() end
+    for i = 1, #NoClipParts do
+        NoClipParts[i].CanCollide = false
     end
 end
 
@@ -47,6 +61,7 @@ function Movement:Init()
     --// Apply speed/jump on character (re)spawn
     UN.TrackConnection(LocalPlayer.CharacterAdded:Connect(function()
         task.wait(0.5)
+        self:RefreshNoClipParts()
         self:Apply()
         if UN.Config.NoClipEnabled then
             task.spawn(function()

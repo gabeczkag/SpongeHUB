@@ -1349,7 +1349,11 @@ local function Init()
 
         --// Update role indicator
         if State.RoleLabel then
-            ScanRoles()
+            local nowS = os.clock()
+            if nowS - (State._lastRoleScan or 0) >= 2 then
+                State._lastRoleScan = nowS
+                ScanRoles()
+            end
             local role = State.LocalRole
             local roleColor = Config.ESPInnocentColor
             if role == "Murderer" then

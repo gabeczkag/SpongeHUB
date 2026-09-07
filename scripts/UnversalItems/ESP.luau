@@ -46,12 +46,32 @@ function ESP:Cleanup()
     end
 end
 
+--// Cache the player list so we don't rebuild it every frame (cheap but nice).
+local PlayerCache = {}
+local function SyncPlayers()
+    for i = #PlayerCache, 1, -1 do PlayerCache[i] = nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        PlayerCache[#PlayerCache + 1] = p
+    end
+end
+UN.TrackConnection(Players.PlayerAdded:Connect(SyncPlayers))
+UN.TrackConnection(Players.PlayerRemoving:Connect(SyncPlayers))
+SyncPlayers()
+
 function ESP:Update()
+    --// Fast path: if ESP is disabled, just clear any leftover drawings and bail.
+    if not UN.Config.ESPEnabled then
+        for k, _ in pairs(self.Objects) do
+            self:RemoveFor(k)
+        end
+        return
+    end
+
     --// Redraw pass: drop ESP for players that left / are invalid so
     --// drawings don't get stuck on screen after someone leaves the game.
-    for tracked, obj in pairs(self.Objects) do
+    for tracked, _ in pairs(self.Objects) do
         local stillHere = false
-        for _, p in ipairs(Players:GetPlayers()) do
+        for _, p in ipairs(PlayerCache) do
             if p == tracked then stillHere = true; break end
         end
         if not stillHere or not UN.IsAlive(tracked) or tracked == LocalPlayer then
@@ -59,11 +79,7 @@ function ESP:Update()
         end
     end
 
-    if not UN.Config.ESPEnabled then
-        return
-    end
-
-    for _, player in ipairs(Players:GetPlayers()) do
+    for _, player in ipairs(PlayerCache) do
         if player ~= LocalPlayer and UN.IsAlive(player) then
             self:CreateFor(player)
             local obj = self.Objects[player]

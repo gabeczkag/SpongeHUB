@@ -7,12 +7,10 @@
 local repo = "gabeczkag/SpongeHUB"
 local base = "scripts/UnversalItems/"
 
+--// UniversalHub.luau itself pulls in Utils + all modules via #include,
+--// so we only need to load these two files explicitly.
 local files = {
     "Utils.luau",
-    "Aimbot.luau",
-    "PlayerMovement.luau",
-    "AntiCheat.luau",
-    "ESP.luau",
     "UniversalHub.luau",
 }
 

@@ -1,13 +1,26 @@
---[[
+--[==[
     SpongeHUB - Universal Hub
     Loads all UniversalItems modules, builds a GUI, runs the main loop,
     and provides an "Unload All" button. Works on ANY game.
-    Paste into executor after loading Utils.luau + module files, OR
-    load this file last and it will require Modules to be registered.
-]]
+
+    Modules are pulled in with #include (resolved by the loader from
+    scripts/UnversalItems/). You can add/remove includes freely, e.g.:
+        --#include Aimbot.luau
+        --#include ESP.luau
+    The loader inlines them before running, so this file is self-contained.
+
+    To load just this hub, run scripts/UnversalItems/loader.luau (it loads
+    Utils.luau + this file), or paste this file's contents into your executor.
+]==]
+
+--#include Utils.luau
+--#include Aimbot.luau
+--#include PlayerMovement.luau
+--#include AntiCheat.luau
+--#include ESP.luau
 
 local UN = getgenv().UN
-assert(UN, "[Hub] Load Utils.luau first!")
+assert(UN, "[Hub] Utils.luau failed to load (check #include).")
 
 local Players = UN.Players
 local RunService = UN.RunService

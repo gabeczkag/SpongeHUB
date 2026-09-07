@@ -72,4 +72,15 @@ function AntiCheat:Init()
 end
 
 UN.RegisterModule("AntiCheat", AntiCheat)
+
+local UI = UN.State.Modules.UI
+if UI then
+    local mod = UI:Add_Module("AntiCheat")
+    mod:Toggle("Enable Spoof", "AntiCheatEnabled", function(v) if v then AntiCheat:Init() end end)
+    mod:Toggle("Anti Kick", "AntiKick")
+    mod:Toggle("Anti Screenshot", "AntiScreenshot")
+else
+    warn("[AntiCheat] UI module not loaded; skipping controls.")
+end
+
 print("[UN] AntiCheat module loaded.")

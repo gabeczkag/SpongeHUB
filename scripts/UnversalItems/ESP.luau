@@ -47,10 +47,19 @@ function ESP:Cleanup()
 end
 
 function ESP:Update()
-    if not UN.Config.ESPEnabled then
-        for _, obj in pairs(self.Objects) do
-            for _, d in pairs(obj) do pcall(function() d.Visible = false end) end
+    --// Redraw pass: drop ESP for players that left / are invalid so
+    --// drawings don't get stuck on screen after someone leaves the game.
+    for tracked, obj in pairs(self.Objects) do
+        local stillHere = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p == tracked then stillHere = true; break end
         end
+        if not stillHere or not UN.IsAlive(tracked) or tracked == LocalPlayer then
+            self:RemoveFor(tracked)
+        end
+    end
+
+    if not UN.Config.ESPEnabled then
         return
     end
 
@@ -105,4 +114,17 @@ function ESP:Update()
 end
 
 UN.RegisterModule("ESP", ESP)
+
+local UI = UN.State.Modules.UI
+if UI then
+    local mod = UI:Add_Module("ESP")
+    mod:Toggle("Enable ESP", "ESPEnabled")
+    mod:Toggle("Box", "ESPBox")
+    mod:Toggle("Name", "ESPName")
+    mod:Toggle("Health", "ESPHealth")
+    mod:Toggle("Tracer", "ESPTracer")
+else
+    warn("[ESP] UI module not loaded; skipping controls.")
+end
+
 print("[UN] ESP module loaded.")

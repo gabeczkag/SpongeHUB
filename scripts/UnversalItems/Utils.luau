@@ -25,6 +25,8 @@ UN.Config = UN.Config or {
     AimbotSmoothing = 5,
     AimbotTargetPart = "HumanoidRootPart",
     AimbotTeamCheck = false,
+    AimbotTargetTeam = "All",      -- "All" | "Murderer" | "Sheriff" | "Innocent"
+    AimbotMM2Mode = false,          -- when true, uses MM2 roles (Sheriff->Murderer etc.)
 
     ESPEnabled = false,
     ESPBox = true,
@@ -97,6 +99,42 @@ function UN.TrackConnection(conn)
         table.insert(UN.State.Connections, conn)
     end
     return conn
+end
+
+--// Unload system: modules register cleanup callbacks here; UI/Hub call UnloadAll
+UN.UnloadCallbacks = UN.UnloadCallbacks or {}
+UN.Unloaded = false
+
+function UN.AddUnload(fn)
+    if type(fn) == "function" then
+        table.insert(UN.UnloadCallbacks, fn)
+    end
+end
+
+function UN.UnloadAll()
+    if UN.Unloaded then return end
+    UN.Unloaded = true
+
+    for _, conn in ipairs(UN.State.Connections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    if UN.State.RenderConn then
+        pcall(function() UN.State.RenderConn:Disconnect() end)
+    end
+
+    for _, cb in ipairs(UN.UnloadCallbacks) do
+        pcall(cb)
+    end
+
+    --// Reset all toggle-style config keys
+    for k, v in pairs(UN.Config) do
+        if type(v) == "boolean" then UN.Config[k] = false end
+    end
+
+    pcall(function()
+        if UN.State.Modules.ESP then UN.State.Modules.ESP:Cleanup() end
+    end)
+    print("[UN] Unloaded.")
 end
 
 print("[UN] Universal library loaded.")

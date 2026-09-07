@@ -16,10 +16,43 @@ local Aimbot = {}
 function Aimbot:GetClosestPlayer()
     local closest, closestDist = nil, UN.Config.AimbotFOV
     local mousePos = UN.UserInputService:GetMouseLocation()
+    local targetTeam = UN.Config.AimbotTargetTeam
+    local mm2 = UN.Config.AimbotMM2Mode
+    local localRole = (mm2 and UN.State.MM2Roles and UN.State.MM2Roles[LocalPlayer.Name]) or nil
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and UN.IsAlive(player) then
-            if not (UN.Config.AimbotTeamCheck and UN.IsTeammate(LocalPlayer, player)) then
+            local skip = false
+
+            --// Standard team check (same team -> skip)
+            if UN.Config.AimbotTeamCheck and UN.IsTeammate(LocalPlayer, player) then
+                skip = true
+            end
+
+            --// Target team filter (universal)
+            if not skip and targetTeam ~= "All" then
+                local role = UN.State.MM2Roles and UN.State.MM2Roles[player.Name]
+                if targetTeam == "Murderer" and role ~= "Murderer" then
+                    skip = true
+                elseif targetTeam == "Sheriff" and role ~= "Sheriff" then
+                    skip = true
+                elseif targetTeam == "Innocent" and role == "Murderer" then
+                    skip = true
+                end
+            end
+
+            --// MM2 mode: Sheriff only aims at Murderer, Murderer aims at anyone, others none
+            if not skip and mm2 and localRole then
+                if localRole == "Sheriff" then
+                    if (UN.State.MM2Roles and UN.State.MM2Roles[player.Name]) ~= "Murderer" then
+                        skip = true
+                    end
+                elseif localRole ~= "Murderer" then
+                    skip = true
+                end
+            end
+
+            if not skip then
                 local parts = UN.GetCharacterParts(player)
                 local targetPart = parts and parts[UN.Config.AimbotTargetPart]
                 if targetPart then
@@ -76,4 +109,28 @@ function Aimbot:Update()
 end
 
 UN.RegisterModule("Aimbot", Aimbot)
+
+--// Register in the static UI
+local UI = UN.State.Modules.UI
+if UI then
+    local mod = UI:Add_Module("Aimbot")
+    mod:Toggle("Enable Aimbot", "AimbotEnabled")
+    mod:Toggle("Team Check", "AimbotTeamCheck")
+    mod:Toggle("MM2 Mode (roles)", "AimbotMM2Mode")
+    mod:Slider("FOV", 30, 500, "AimbotFOV")
+    mod:Slider("Smoothing", 1, 20, "AimbotSmoothing")
+
+    local teams = {"All", "Murderer", "Sheriff", "Innocent"}
+    local teamBtn = mod:Button("Target team: " .. UN.Config.AimbotTargetTeam, function()
+        local cur = UN.Config.AimbotTargetTeam
+        local idx = 1
+        for i, t in ipairs(teams) do if t == cur then idx = i end end
+        UN.Config.AimbotTargetTeam = teams[idx % #teams + 1]
+        teamBtn.Text = "Target team: " .. UN.Config.AimbotTargetTeam
+    end)
+else
+    warn("[Aimbot] UI module not loaded; skipping controls.")
+end
+
 print("[UN] Aimbot module loaded.")
+

@@ -1,5 +1,14 @@
 --// SpongeHUB - Murder Mystery 2 Script
 --// Anti-Cheat Spoof | Role-Based Aimbot | ESP
+--// Uses SpongeHUB Universal Items modules (see scripts/UnversalItems).
+--// The loader pre-processes the #include directives below and inlines them.
+
+--#include Utils.luau
+--#include UI.luau
+--#include Aimbot.luau
+--#include ESP.luau
+--#include PlayerMovement.luau
+--#include AntiCheat.luau
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -176,6 +185,15 @@ local function ScanRoles()
     State.LocalRole = GetRole(LocalPlayer)
     State.Murderer = nil
     State.Sheriff = nil
+
+    --// Feed roles into the universal Aimbot (MM2 mode)
+    local UN = getgenv().UN
+    if UN then
+        UN.State.MM2Roles = UN.State.MM2Roles or {}
+        for k in pairs(UN.State.MM2Roles) do UN.State.MM2Roles[k] = nil end
+        UN.State.MM2Roles[LocalPlayer.Name] = State.LocalRole
+    end
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local role = GetRole(player)
@@ -184,7 +202,13 @@ local function ScanRoles()
             elseif role == "Sheriff" then
                 State.Sheriff = player
             end
+            if UN then UN.State.MM2Roles[player.Name] = role end
         end
+    end
+
+    --// Enable universal MM2 aimbot behavior
+    if UN then
+        UN.Config.AimbotMM2Mode = true
     end
 end
 
@@ -1182,6 +1206,36 @@ function GUI:Create()
         end
     end))
 
+    --// Open the universal SpongeHUB UI (modules, target-team, unload all)
+    local UN = getgenv().UN
+    local uniBtn = CreateInstance("TextButton", {
+        Name = "UniversalUIBtn",
+        Parent = mainFrame,
+        Size = UDim2.new(0, 120, 0, 28),
+        Position = UDim2.new(0, 8, 1, -38),
+        BackgroundColor3 = Color3.fromRGB(40, 60, 110),
+        Text = "Universal UI",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 13,
+        Font = Enum.Font.GothamBold,
+        BorderSizePixel = 0,
+    })
+    CreateInstance("UICorner", {CornerRadius = UDim.new(0, 6), Parent = uniBtn})
+    uniBtn.MouseButton1Click:Connect(function()
+        if UN and UN.State.Modules.UI then
+            UN.State.Modules.UI:Create("SpongeHUB Universal")
+            UN.State.Modules.UI:Toggle()
+        end
+    end)
+
+    if UN and UN.State.Modules.UI then
+        UN.State.Modules.UI:Create("SpongeHUB Universal")
+        --// MM2-specific panel inside the universal UI
+        local mm2Mod = UN.State.Modules.UI:Add_Module("MM2")
+        mm2Mod:Label("Roles update automatically.")
+        mm2Mod:Button("Refresh Roles", function() ScanRoles() end)
+    end
+
     State.Gui = screenGui
     State.RoleLabel = roleLabel
 
@@ -1258,7 +1312,6 @@ local function Init()
     end))
 
     table.insert(State.Connections, Players.PlayerRemoving:Connect(function(player)
-        ESP:RemoveESPForPlayer(player)
         State.ESPObjects[player] = nil
     end))
 
@@ -1278,19 +1331,7 @@ local function Init()
         end
     end))
 
-    --// Create ESP for existing players
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            ESP:CreateESPForPlayer(player)
-        end
-    end
-
-    table.insert(State.Connections, Players.PlayerAdded:Connect(function(player)
-        task.spawn(function()
-            task.wait(1)
-            ESP:CreateESPForPlayer(player)
-        end)
-    end))
+    --// ESP is handled by the universal SpongeHUB ESP module now.
 
     --// Main Render Loop
     local lastFlick = 0
@@ -1315,14 +1356,33 @@ local function Init()
             State.RoleLabel.TextColor3 = roleColor
         end
 
-        --// Update ESP
-        ESP:UpdateESP()
+        --// Drive the universal SpongeHUB modules instead of the old built-ins
+        local UN = getgenv().UN
+        if UN then
+            --// Sync MM2 config -> universal config
+            UN.Config.ESPEnabled = Config.ESPEnabled
+            UN.Config.ESPBox = Config.ESPBoxEnabled
+            UN.Config.ESPName = Config.ESPNameEnabled
+            UN.Config.ESPHealth = Config.ESPHealthEnabled
+            UN.Config.ESPTracer = Config.ESPTracerEnabled
+            UN.Config.AimbotEnabled = Config.AimbotEnabled
+            UN.Config.AimbotFOV = Config.AimbotFOV
+            UN.Config.AimbotSmoothing = Config.AimbotSmoothing
+            UN.Config.AimbotTargetPart = Config.AimbotTargetPart
+            UN.Config.SpeedEnabled = Config.SpeedHack
+            UN.Config.SpeedValue = Config.CustomSpeed
+            UN.Config.JumpEnabled = (Config.JumpPower and Config.JumpPower > 50)
+            UN.Config.NoClipEnabled = Config.NoClipEnabled
+            UN.Config.InfiniteJump = Config.InfiniteJump
+            UN.Config.AimbotMM2Mode = true
 
-        --// Update Aimbot
-        Aimbot:Update()
-        Aimbot:UpdateFOVCircle()
+            local M = UN.State.Modules
+            if M.ESP then M.ESP:Update() end
+            if M.Aimbot then M.Aimbot:Update() end
+            if M.Movement then M.Movement:Update() end
+        end
 
-        --// Auto Flick Knife: throw at locked target when toggled
+        --// Auto Flick Knife: throw at locked target when toggled (MM2 specific)
         if Config.FlickKnife and GetRole(LocalPlayer) == "Murderer" and State.AimbotTarget then
             if IsAlive(State.AimbotTarget) then
                 local now = os.clock()
@@ -1331,16 +1391,6 @@ local function Init()
                     FlickKnife:ThrowAtTarget(State.AimbotTarget)
                 end
             end
-        end
-
-        --// NoClip
-        if Config.NoClipEnabled then
-            Movement:EnableNoClip()
-        end
-
-        --// Infinite Jump detection
-        if Config.InfiniteJump then
-            Movement:InfiniteJump()
         end
     end)
 

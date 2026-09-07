@@ -10,6 +10,7 @@
 --#include PlayerMovement.luau
 --#include AntiCheat.luau
 --#include RemoteSpy.luau
+--#include AssetApplier.luau
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")

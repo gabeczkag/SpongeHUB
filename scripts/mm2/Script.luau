@@ -59,6 +59,7 @@ local State = {
     FOVCircle = nil,
     ESPObjects = {},
     Connections = {},
+    Unloaded = false,
     Detected = false,
 }
 
@@ -645,23 +646,21 @@ function Aimbot:GetClosestPlayer()
                     local dist = (mousePos - screenPos).Magnitude
                     if dist < closestDist then
                         --// Team check
+                        local teamOk = true
                         if Config.AimbotTeamCheck then
                             local localRole = GetRole(LocalPlayer)
                             local targetRole = GetRole(player)
-
                             if localRole == "Sheriff" then
-                                if targetRole ~= "Murderer" then
-                                    continue
-                                end
-                            elseif localRole == "Murderer" then
-                                --// Murderer can aim at anyone
-                            else
-                                continue --// Innocent shouldn't aimbot
+                                teamOk = (targetRole == "Murderer")
+                            elseif localRole ~= "Murderer" then
+                                teamOk = false --// Innocent shouldn't aimbot
                             end
                         end
 
-                        closestDist = dist
-                        closestPlayer = player
+                        if teamOk then
+                            closestDist = dist
+                            closestPlayer = player
+                        end
                     end
                 end
             end
@@ -1176,15 +1175,60 @@ function GUI:Create()
     end)
 
     --// Toggle GUI with RightControl
-    UserInputService.InputBegan:Connect(function(input, gpe)
+    table.insert(State.Connections, UserInputService.InputBegan:Connect(function(input, gpe)
         if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
             guiOpen = not guiOpen
             mainFrame.Visible = guiOpen
         end
-    end)
+    end))
 
     State.Gui = screenGui
     State.RoleLabel = roleLabel
+
+    --// Unload All button
+    local unloadBtn = CreateInstance("TextButton", {
+        Name = "UnloadAllBtn",
+        Parent = mainFrame,
+        Size = UDim2.new(0, 110, 0, 30),
+        Position = UDim2.new(1, -150, 1, -38),
+        BackgroundColor3 = Color3.fromRGB(120, 30, 30),
+        Text = "Unload All",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 14,
+        Font = Enum.Font.GothamBold,
+        BorderSizePixel = 0,
+    })
+    CreateInstance("UICorner", {CornerRadius = UDim.new(0, 6), Parent = unloadBtn})
+    unloadBtn.MouseButton1Click:Connect(function()
+        Shutdown()
+    end)
+
+    --// Global unload: stop loops, disconnect, clear ESP, destroy GUI
+    function Shutdown()
+        if State.Unloaded then return end
+        State.Unloaded = true
+
+        for _, conn in ipairs(State.Connections or {}) do
+            pcall(function() conn:Disconnect() end)
+        end
+        if State.RenderConn then pcall(function() State.RenderConn:Disconnect() end) end
+
+        --// Reset toggles to safe state
+        Config.AimbotEnabled = false
+        Config.ESPEnabled = false
+        Config.NoClipEnabled = false
+        Config.SilentAimEnabled = false
+        Config.FlickKnife = false
+        Config.AntiCheatSpoof = false
+
+        pcall(function() ESP:Cleanup() end)
+        if State.FOVCircle then pcall(function() State.FOVCircle:Remove() end) end
+        if State.Gui then pcall(function() State.Gui:Destroy() end) end
+
+        print("[SpongeHUB] Script unloaded.")
+    end
+
+    State.Shutdown = Shutdown
 end
 
 --// ============================================
@@ -1202,7 +1246,7 @@ local function Init()
     ScanRoles()
 
     --// Player connections
-    Players.PlayerAdded:Connect(function(player)
+    table.insert(State.Connections, Players.PlayerAdded:Connect(function(player)
         player.CharacterAdded:Connect(function()
             task.wait(2)
             ScanRoles()
@@ -1211,14 +1255,14 @@ local function Init()
             task.wait(5)
             ScanRoles()
         end)
-    end)
+    end))
 
-    Players.PlayerRemoving:Connect(function(player)
+    table.insert(State.Connections, Players.PlayerRemoving:Connect(function(player)
         ESP:RemoveESPForPlayer(player)
         State.ESPObjects[player] = nil
-    end)
+    end))
 
-    LocalPlayer.CharacterAdded:Connect(function(char)
+    table.insert(State.Connections, LocalPlayer.CharacterAdded:Connect(function(char)
         task.wait(2)
         ScanRoles()
         Movement:ApplySpeed()
@@ -1232,7 +1276,7 @@ local function Init()
                 end
             end)
         end
-    end)
+    end))
 
     --// Create ESP for existing players
     for _, player in ipairs(Players:GetPlayers()) do
@@ -1241,17 +1285,19 @@ local function Init()
         end
     end
 
-    Players.PlayerAdded:Connect(function(player)
+    table.insert(State.Connections, Players.PlayerAdded:Connect(function(player)
         task.spawn(function()
             task.wait(1)
             ESP:CreateESPForPlayer(player)
         end)
-    end)
+    end))
 
     --// Main Render Loop
     local lastFlick = 0
 
-    RunService.RenderStepped:Connect(function()
+    State.RenderConn = RunService.RenderStepped:Connect(function()
+        if State.Unloaded then return end
+
         --// Update role indicator
         if State.RoleLabel then
             ScanRoles()

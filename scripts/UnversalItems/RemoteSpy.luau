@@ -124,6 +124,7 @@ end
 
 --// Manually FireServer to a remote found by name anywhere in the game
 function RemoteSpy:FireByName(name, ...)
+    local args = {...}
     local found
     pcall(function()
         for _, desc in ipairs(game:GetDescendants()) do
@@ -134,9 +135,9 @@ function RemoteSpy:FireByName(name, ...)
         end
     end)
     if not found then warn("[RSpy] Remote not found: " .. tostring(name)); return end
-    local ok, err = pcall(function() found:FireServer(...) end)
+    local ok, err = pcall(function() found:FireServer(unpack(args)) end)
     if ok then
-        print(("[RSpy] Fired %s with %d args"):format(name, select("#", ...)))
+        print(("[RSpy] Fired %s with %d args"):format(name, #args))
     else
         warn("[RSpy] Fire failed: " .. tostring(err))
     end

@@ -351,6 +351,25 @@ function UI:Add_Module(name)
         return box
     end
 
+    --// Input: a TextBox bound to UN.Config[configKey] (for typing remote names / args)
+    function handle:Input(label, configKey, placeholder)
+        local box = Instance.new("TextBox", frame)
+        box.Size = UDim2.new(1, -12, 0, 24)
+        box.Position = self:_next()
+        box.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+        box.BorderSizePixel = 0
+        box.Font = Enum.Font.Gotham
+        box.TextSize = 12
+        box.TextColor3 = Color3.fromRGB(255, 255, 255)
+        box.Text = UN.Config[configKey] or ""
+        box.PlaceholderText = placeholder or ""
+        box.ClearTextOnFocus = false
+        box.FocusLost:Connect(function()
+            UN.Config[configKey] = box.Text
+        end)
+        return box
+    end
+
     state.handle = handle
     if not self.Selected then self:Select(name) end
     return handle
